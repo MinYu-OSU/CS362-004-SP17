@@ -5,6 +5,112 @@
 #include <math.h>
 #include <stdlib.h>
 
+//New functions (refactor) ------------------------------
+int adventurerCase(int drawntreasure, struct gameState *state, int currentPlayer, int z, int temphand[MAX_HAND], int cardDrawn){
+
+  while(drawntreasure<3){ //bug where total drawn treasure is 3 not 2
+    //if the player deck is empty, shuffle the discard pile and add to deck
+    if (state->deckCount[currentPlayer] <1){
+      shuffle(currentPlayer, state);
+    }
+    drawCard(currentPlayer, state);
+    cardDrawn = state->hand[currentPlayer][state->handCount[currentPlayer]-1];
+    if (cardDrawn == copper || cardDrawn == silver || cardDrawn == gold)
+        drawntreasure++;
+    else{
+        temphand[z]=cardDrawn;
+        state->handCount[currentPlayer]--;
+        z++;
+    }  
+  }
+  while(z-1>=0){
+    state->discard[currentPlayer][state->discardCount[currentPlayer]++]=temphand[z-1];
+    z=z-1;
+  }
+  return 0;
+}
+
+int smithyCase(int i, int currentPlayer, struct gameState *state, int handPos){
+  // draw +3 cards
+  for (i = 0; i < 4; i++){
+    drawCard(currentPlayer, state);
+  }
+
+  //discard card from hand
+  discardCard(handPos, currentPlayer, state, 1);
+  return 0;
+}
+
+int councilRoomCase(int i, int currentPlayer, struct gameState *state, int handPos){
+  // +4 Cards
+  for (i = 0; i < 4; i++){
+    drawCard(currentPlayer, state);
+  }
+
+  //+1 Buy
+  state->numBuys+=3;
+
+  //Each other players draws a card
+  for (i = 0; i < state->numPlayers; i++){
+    if (i != currentPlayer){
+      drawCard(i, state);
+    }
+  }
+
+  // put played card in played card pile
+  discardCard(handPos, currentPlayer, state, 0);
+}
+
+int mineCase(int i, int j, struct gameState *state, int currentPlayer, int choice1, int choice2, int handPos){
+
+  j = state->hand[currentPlayer][choice1];  //store card we will trash
+
+  if (state->hand[currentPlayer][choice1] < copper || state->hand[currentPlayer][choice1] > gold)
+  {
+    return -1;
+  }
+    
+  if (choice2 > treasure_map || choice2 < curse)
+  {
+    return -1;
+  }
+
+  if ( (getCost(state->hand[currentPlayer][choice1]) + 3) > getCost(choice2) )
+  {
+    return -1;
+  }
+
+  gainCard(choice2, state, 1, currentPlayer);
+
+  //discard card from hand
+  discardCard(handPos, currentPlayer, state, 0);
+
+  //discard trashed card
+  for (i = 0; i < state->handCount[currentPlayer]; i++)
+  {
+    if (state->hand[currentPlayer][i] == j)
+      {
+        discardCard(i, currentPlayer, state, 0);      
+        break;
+      }
+  }
+      
+      return 0;
+}
+
+int villageCase(int currentPlayer, struct gameState *state, int handPos){
+        //+1 Card
+      drawCard(currentPlayer, state);
+      
+      //+2 Actions
+      state->numActions = state->numActions + 2;
+      
+      //discard played card from hand
+      discardCard(handPos, currentPlayer, state, 0);
+      return 0;
+}
+//--------------------------------------------------------------------------
+
 int compare(const void* a, const void* b) {
   if (*(int*)a > *(int*)b)
     return 1;
@@ -667,50 +773,13 @@ int cardEffect(int card, int choice1, int choice2, int choice3, struct gameState
   switch( card ) 
     {
     case adventurer:
-      while(drawntreasure<2){
-	if (state->deckCount[currentPlayer] <1){//if the deck is empty we need to shuffle discard and add to deck
-	  shuffle(currentPlayer, state);
-	}
-	drawCard(currentPlayer, state);
-	cardDrawn = state->hand[currentPlayer][state->handCount[currentPlayer]-1];//top card of hand is most recently drawn card.
-	if (cardDrawn == copper || cardDrawn == silver || cardDrawn == gold)
-	  drawntreasure++;
-	else{
-	  temphand[z]=cardDrawn;
-	  state->handCount[currentPlayer]--; //this should just remove the top card (the most recently drawn one).
-	  z++;
-	}
-      }
-      while(z-1>=0){
-	state->discard[currentPlayer][state->discardCount[currentPlayer]++]=temphand[z-1]; // discard all cards in play that have been drawn
-	z=z-1;
-      }
+      adventurerCase(drawntreasure, state, currentPlayer, z, temphand, cardDrawn);
       return 0;
-			
+
     case council_room:
-      //+4 Cards
-      for (i = 0; i < 4; i++)
-	{
-	  drawCard(currentPlayer, state);
-	}
-			
-      //+1 Buy
-      state->numBuys++;
-			
-      //Each other player draws a card
-      for (i = 0; i < state->numPlayers; i++)
-	{
-	  if ( i != currentPlayer )
-	    {
-	      drawCard(i, state);
-	    }
-	}
-			
-      //put played card in played card pile
-      discardCard(handPos, currentPlayer, state, 0);
-			
+      councilRoomCase(i, currentPlayer, state, handPos);
       return 0;
-			
+	
     case feast:
       //gain card with cost up to 5
       //Backup hand
@@ -768,6 +837,9 @@ int cardEffect(int card, int choice1, int choice2, int choice3, struct gameState
       return -1;
 			
     case mine:
+        mineCase(i, j, state, currentPlayer, choice1, choice2, handPos);
+        return 0;
+    /*
       j = state->hand[currentPlayer][choice1];  //store card we will trash
 
       if (state->hand[currentPlayer][choice1] < copper || state->hand[currentPlayer][choice1] > gold)
@@ -801,7 +873,7 @@ int cardEffect(int card, int choice1, int choice2, int choice3, struct gameState
 	}
 			
       return 0;
-			
+	*/	
     case remodel:
       j = state->hand[currentPlayer][choice1];  //store card we will trash
 
@@ -829,27 +901,13 @@ int cardEffect(int card, int choice1, int choice2, int choice3, struct gameState
       return 0;
 		
     case smithy:
-      //+3 Cards
-      for (i = 0; i < 3; i++)
-	{
-	  drawCard(currentPlayer, state);
-	}
-			
-      //discard card from hand
-      discardCard(handPos, currentPlayer, state, 0);
+      smithyCase(i, state, currentPlayer, handPos);
       return 0;
-		
+
     case village:
-      //+1 Card
-      drawCard(currentPlayer, state);
-			
-      //+2 Actions
-      state->numActions = state->numActions + 2;
-			
-      //discard played card from hand
-      discardCard(handPos, currentPlayer, state, 0);
+      villageCase(currentPlayer, state, handPos);
       return 0;
-		
+
     case baron:
       state->numBuys++;//Increase buys by 1!
       if (choice1 > 0){//Boolean true or going to discard an estate
