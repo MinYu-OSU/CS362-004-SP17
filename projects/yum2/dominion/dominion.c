@@ -37,7 +37,7 @@ int smithyCase(int i, int currentPlayer, struct gameState *state, int handPos){
   }
 
   //discard card from hand
-  discardCard(handPos, currentPlayer, state, 1);
+  discardCard(handPos, currentPlayer, state, 0);
   return 0;
 }
 

@@ -12,8 +12,8 @@
 int main (int argc, char** argv) {
     printf ("----Testing smithyCard()----\n");
     // Create a game
-    int i, handCount, otherPlayerHandCount;
-    i = 0;
+    int handCount, otherPlayerHandCount;
+    int i = 0;
     int numPlayers = 2;
     int handPos = 0;
     struct gameState G;
